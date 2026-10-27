@@ -1,0 +1,1727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI-Powered FE Question Moderation Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { font-family: 'Inter', sans-serif; }
+  body { background: #f0f4f8; }
+  .nav-item { transition: all 0.2s ease; }
+  .nav-item:hover { background: rgba(255,255,255,0.15); }
+  .nav-item.active { background: rgba(255,255,255,0.2); border-left: 3px solid #5eead4; }
+  .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+  .badge-C1 { background:#dbeafe;color:#1e40af; }
+  .badge-C2 { background:#dcfce7;color:#166534; }
+  .badge-C3 { background:#fef9c3;color:#854d0e; }
+  .badge-C4 { background:#fed7aa;color:#9a3412; }
+  .badge-C5 { background:#fce7f3;color:#9d174d; }
+  .badge-C6 { background:#ede9fe;color:#5b21b6; }
+  .badge-compliant { background:#dcfce7;color:#15803d; }
+  .badge-warning { background:#fef3c7;color:#b45309; }
+  .badge-flagged { background:#fee2e2;color:#dc2626; }
+  .badge-pending { background:#f3f4f6;color:#4b5563; }
+  .status-dot-green { background:#22c55e; }
+  .status-dot-yellow { background:#eab308; }
+  .status-dot-red { background:#ef4444; }
+  .demo-banner { background: linear-gradient(135deg, #1e3a5f 0%, #0f766e 100%); }
+  .sidebar { background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 60%, #0f4c75 100%); }
+  .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .accordion-content.open { max-height: 2000px; }
+  .pulse-dot { animation: pulse-anim 2s infinite; }
+  @keyframes pulse-anim { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .spinner { border: 3px solid #e2e8f0; border-top: 3px solid #0f766e; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+  .tab-btn { transition: all 0.2s; }
+  .tab-btn.active { border-bottom: 2px solid #0f766e; color: #0f766e; }
+  .progress-bar { transition: width 0.8s ease; }
+  .ai-glow { box-shadow: 0 0 15px rgba(15,118,110,0.3); }
+  .chart-container { position: relative; height: 280px; }
+  .tooltip-custom { background:#1e293b; color:#fff; padding: 6px 10px; border-radius: 6px; font-size:12px; }
+</style>
+<script>tailwind.config = { theme: { extend: { colors: { navy: { 50:'#eff6ff',100:'#dbeafe',500:'#1d4ed8',700:'#1e40af',900:'#1e3a8a',950:'#0f172a' }, teal: { 50:'#f0fdfa',100:'#ccfbf1',500:'#14b8a6',600:'#0d9488',700:'#0f766e',800:'#115e59',900:'#134e4a' } } } } }</script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ============================================================
+// SYNTHETIC DATA — Java Programming Final Examination Questions
+// ============================================================
+const SAMPLE_QUESTIONS_A = [
+  {
+    id: "A1", set: "A", section: "Section A", number: 1,
+    text: "State TWO (2) principles of Object-Oriented Programming (OOP) in Java.",
+    marks: 4, clo: "CLO1", topic: "OOP Fundamentals",
+    bloomLevel: "C1", bloomVerb: "State",
+    suggestedVerb: "State",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 92, cognitiveAlignment: 95, grammarScore: 98,
+      feedback: "Question is clear and appropriately targets C1 (Remember). Action verb 'State' aligns with Bloom's recall level.",
+      suggestions: []
+    }
+  },
+  {
+    id: "A2", set: "A", section: "Section A", number: 2,
+    text: "Explain the difference between a class and an object in Java with an example.",
+    marks: 6, clo: "CLO1", topic: "OOP Fundamentals",
+    bloomLevel: "C2", bloomVerb: "Explain",
+    suggestedVerb: "Explain",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 90, cognitiveAlignment: 93, grammarScore: 97,
+      feedback: "Good C2 (Understand) question. The requirement for an example adds depth and helps assess understanding.",
+      suggestions: []
+    }
+  },
+  {
+    id: "A3", set: "A", section: "Section B", number: 3,
+    text: "Write a Java program to calculate the factorial of a given number using recursion.",
+    marks: 10, clo: "CLO2", topic: "Methods and Recursion",
+    bloomLevel: "C3", bloomVerb: "Write",
+    suggestedVerb: "Write",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 88, cognitiveAlignment: 90, grammarScore: 96,
+      feedback: "C3 (Apply) level is appropriate. Question tests recursive programming skills effectively.",
+      suggestions: ["Consider specifying whether negative numbers or zero should be handled to avoid ambiguity."]
+    }
+  },
+  {
+    id: "A4", set: "A", section: "Section B", number: 4,
+    text: "Analyse the given Java code snippet below and identify the errors. Justify your answer.",
+    marks: 10, clo: "CLO3", topic: "Debugging and Code Analysis",
+    bloomLevel: "C4", bloomVerb: "Analyse",
+    suggestedVerb: "Analyse",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 85, cognitiveAlignment: 92, grammarScore: 95,
+      feedback: "Appropriate C4 (Analyse) level question. 'Justify your answer' strengthens the higher-order thinking requirement.",
+      suggestions: ["Attach the actual code snippet — the question currently references a snippet that is missing from this submission."]
+    }
+  },
+  {
+    id: "A5", set: "A", section: "Section C", number: 5,
+    text: "Design a Java class hierarchy for a university system. Your design must include at least THREE (3) classes demonstrating inheritance and polymorphism. Justify design decisions.",
+    marks: 20, clo: "CLO4", topic: "Inheritance and Polymorphism",
+    bloomLevel: "C5", bloomVerb: "Design",
+    suggestedVerb: "Design",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 87, cognitiveAlignment: 95, grammarScore: 94,
+      feedback: "Excellent C5 (Evaluate/Synthesise) question. Multi-part nature appropriately challenges higher-order thinking.",
+      suggestions: ["Clarify marking rubric expectations — are diagrams (UML) required or optional?"]
+    }
+  },
+  {
+    id: "A6", set: "A", section: "Section B", number: 6,
+    text: "Do the Java program for array sorting.",
+    marks: 8, clo: "CLO2", topic: "Arrays",
+    bloomLevel: "C3", bloomVerb: "Do",
+    suggestedVerb: "Implement / Write",
+    issues: ["Vague action verb 'Do' is not a recognised Bloom's taxonomy verb", "Question lacks specifics — which sorting algorithm?", "Informal language reduces clarity"],
+    complianceStatus: "flagged",
+    aiAnalysis: {
+      clarity: 42, cognitiveAlignment: 55, grammarScore: 70,
+      feedback: "⚠️ This question has multiple compliance issues. The verb 'Do' is non-standard. No sorting algorithm is specified. The question is too vague for fair assessment.",
+      suggestions: [
+        "Replace 'Do' with 'Implement' or 'Write' — appropriate C3 verbs.",
+        "Specify the sorting algorithm (e.g., Bubble Sort, Selection Sort).",
+        "Add context: 'Write a Java program to implement Bubble Sort on an integer array of 10 elements. Display the array before and after sorting.'",
+        "Ensure mark allocation is proportional to expected program complexity."
+      ]
+    }
+  },
+  {
+    id: "A7", set: "A", section: "Section A", number: 7,
+    text: "List FOUR (4) access modifiers available in Java and briefly describe each.",
+    marks: 8, clo: "CLO1", topic: "OOP Fundamentals",
+    bloomLevel: "C1", bloomVerb: "List",
+    suggestedVerb: "List",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 94, cognitiveAlignment: 92, grammarScore: 99,
+      feedback: "Well-structured C1 question. Specific quantity (FOUR) removes ambiguity.",
+      suggestions: []
+    }
+  },
+  {
+    id: "A8", set: "A", section: "Section C", number: 8,
+    text: "Evaluate the trade-offs between using an ArrayList and a LinkedList in Java. Create a program that demonstrates the performance difference between the two data structures using a real-world scenario of your choice.",
+    marks: 20, clo: "CLO5", topic: "Data Structures",
+    bloomLevel: "C6", bloomVerb: "Evaluate",
+    suggestedVerb: "Evaluate",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 89, cognitiveAlignment: 96, grammarScore: 95,
+      feedback: "Excellent C6 (Create/Evaluate) question requiring both critical thinking and practical implementation.",
+      suggestions: ["Consider specifying minimum dataset size for meaningful performance comparison."]
+    }
+  }
+];
+
+const SAMPLE_QUESTIONS_B = [
+  {
+    id: "B1", set: "B", section: "Section A", number: 1,
+    text: "Name TWO (2) characteristics of Object-Oriented Programming (OOP).",
+    marks: 4, clo: "CLO1", topic: "OOP Fundamentals",
+    bloomLevel: "C1", bloomVerb: "Name",
+    suggestedVerb: "Name",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 91, cognitiveAlignment: 93, grammarScore: 98,
+      feedback: "Parallel question to Set A Q1. Appropriate C1 (Remember) question with equivalent mark allocation.",
+      suggestions: []
+    }
+  },
+  {
+    id: "B2", set: "B", section: "Section A", number: 2,
+    text: "Describe what is meant by encapsulation in Java and explain why it is important.",
+    marks: 6, clo: "CLO1", topic: "OOP Fundamentals",
+    bloomLevel: "C2", bloomVerb: "Describe",
+    suggestedVerb: "Describe",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 91, cognitiveAlignment: 92, grammarScore: 97,
+      feedback: "Good C2 equivalent to Set A Q2. Focuses on a different OOP concept while maintaining cognitive parity.",
+      suggestions: []
+    }
+  },
+  {
+    id: "B3", set: "B", section: "Section B", number: 3,
+    text: "Write a Java program to determine whether a given number is a prime number using a method.",
+    marks: 10, clo: "CLO2", topic: "Methods and Logic",
+    bloomLevel: "C3", bloomVerb: "Write",
+    suggestedVerb: "Write",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 90, cognitiveAlignment: 91, grammarScore: 97,
+      feedback: "Good C3 equivalent to Set A Q3. Different algorithm context (prime vs factorial) maintains equivalency.",
+      suggestions: ["Consider clarifying input range or expected output format."]
+    }
+  },
+  {
+    id: "B4", set: "B", section: "Section B", number: 4,
+    text: "Examine the following Java code and determine the output. Provide a detailed explanation for each step of execution.",
+    marks: 10, clo: "CLO3", topic: "Code Tracing",
+    bloomLevel: "C4", bloomVerb: "Examine",
+    suggestedVerb: "Examine",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 86, cognitiveAlignment: 91, grammarScore: 96,
+      feedback: "Good C4 equivalent. Code tracing is a valid analytical task at this level.",
+      suggestions: ["Attach the actual code snippet — it is referenced but missing from this submission."]
+    }
+  },
+  {
+    id: "B5", set: "B", section: "Section C", number: 5,
+    text: "Construct a Java application for an online bookstore using OOP principles. The system must include classes for Book, Customer, and Order. Demonstrate method overloading in at least one class.",
+    marks: 20, clo: "CLO4", topic: "OOP Application Design",
+    bloomLevel: "C5", bloomVerb: "Construct",
+    suggestedVerb: "Construct",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 86, cognitiveAlignment: 94, grammarScore: 95,
+      feedback: "Strong C5 (Synthesise) question. Clear requirements with specific OOP concepts to demonstrate.",
+      suggestions: ["Consider specifying the minimum number of methods required per class for marking consistency."]
+    }
+  },
+  {
+    id: "B6", set: "B", section: "Section B", number: 6,
+    text: "Develop a Java program that implements a stack data structure using arrays with push, pop and peek operations.",
+    marks: 8, clo: "CLO2", topic: "Arrays",
+    bloomLevel: "C3", bloomVerb: "Develop",
+    suggestedVerb: "Develop",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 91, cognitiveAlignment: 90, grammarScore: 97,
+      feedback: "Well-structured C3 question. Clearly specifies required operations, removing ambiguity compared to Set A Q6.",
+      suggestions: []
+    }
+  },
+  {
+    id: "B7", set: "B", section: "Section A", number: 7,
+    text: "Identify FOUR (4) types of errors in Java programming and give ONE (1) example of each.",
+    marks: 8, clo: "CLO1", topic: "Error Handling",
+    bloomLevel: "C1", bloomVerb: "Identify",
+    suggestedVerb: "Identify",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 93, cognitiveAlignment: 91, grammarScore: 99,
+      feedback: "Good C1 question. Requiring an example for each type tests understanding slightly beyond pure recall.",
+      suggestions: []
+    }
+  },
+  {
+    id: "B8", set: "B", section: "Section C", number: 8,
+    text: "Compare the use of interfaces and abstract classes in Java. Design a program using both concepts for a payment processing system and evaluate which approach is more suitable, providing justification.",
+    marks: 20, clo: "CLO5", topic: "Interfaces and Abstract Classes",
+    bloomLevel: "C6", bloomVerb: "Compare / Evaluate",
+    suggestedVerb: "Compare / Evaluate",
+    issues: [],
+    complianceStatus: "compliant",
+    aiAnalysis: {
+      clarity: 88, cognitiveAlignment: 95, grammarScore: 94,
+      feedback: "Strong C6 question requiring synthesis and evaluation. Complex multi-part question appropriately at highest Bloom's level.",
+      suggestions: ["Consider splitting into sub-questions with individual marks for easier marking."]
+    }
+  }
+];
+
+const CLO_DATA = [
+  { id: "CLO1", description: "Explain the fundamental concepts of Object-Oriented Programming using Java", weight: 25 },
+  { id: "CLO2", description: "Apply programming techniques to develop Java programs for solving computational problems", weight: 30 },
+  { id: "CLO3", description: "Analyse Java code to identify errors and trace program execution", weight: 20 },
+  { id: "CLO4", description: "Design object-oriented solutions for real-world problems using Java", weight: 15 },
+  { id: "CLO5", description: "Evaluate and compare Java data structures and design patterns", weight: 10 },
+];
+
+const BLOOM_LEVELS = {
+  C1: { label: "Remember", color: "#3b82f6", verbs: ["Define","State","List","Name","Recall","Identify","Label","Match","Recognise"] },
+  C2: { label: "Understand", color: "#22c55e", verbs: ["Explain","Describe","Summarise","Interpret","Classify","Compare","Discuss","Paraphrase"] },
+  C3: { label: "Apply", color: "#eab308", verbs: ["Apply","Calculate","Demonstrate","Implement","Write","Use","Solve","Develop","Execute"] },
+  C4: { label: "Analyse", color: "#f97316", verbs: ["Analyse","Examine","Differentiate","Break down","Distinguish","Test","Inspect","Investigate"] },
+  C5: { label: "Evaluate", color: "#ec4899", verbs: ["Evaluate","Assess","Judge","Justify","Critique","Design","Construct","Argue","Defend"] },
+  C6: { label: "Create", color: "#8b5cf6", verbs: ["Create","Design","Construct","Formulate","Generate","Plan","Produce","Invent","Compose"] },
+};
+
+// ============================================================
+// UTILITY COMPONENTS
+// ============================================================
+const Badge = ({ type, children, small }) => {
+  const cls = `badge-${type}`;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium ${small ? 'text-xs' : 'text-xs'} ${cls}`}>
+      {children}
+    </span>
+  );
+};
+
+const StatusDot = ({ color }) => (
+  <span className={`inline-block w-2 h-2 rounded-full status-dot-${color} mr-1.5`}></span>
+);
+
+const ScoreBar = ({ score, color }) => (
+  <div className="flex items-center gap-2">
+    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full progress-bar" style={{ width: `${score}%`, background: color || '#0f766e' }}></div>
+    </div>
+    <span className="text-xs font-semibold w-8 text-right text-gray-700">{score}%</span>
+  </div>
+);
+
+const DemoBanner = () => (
+  <div className="demo-banner text-white px-4 py-2 flex items-center justify-between text-sm">
+    <div className="flex items-center gap-2">
+      <span className="pulse-dot inline-block w-2 h-2 rounded-full bg-yellow-400"></span>
+      <span className="font-semibold">DEMONSTRATION MODE</span>
+      <span className="text-teal-200 hidden sm:inline">— Showing simulated AI analysis using synthetic Java Programming examination data. No AI service is connected.</span>
+    </div>
+    <span className="text-teal-300 text-xs hidden md:block">Results are NOT actual compliance verification</span>
+  </div>
+);
+
+const BloomBadge = ({ level }) => {
+  const info = BLOOM_LEVELS[level];
+  if (!info) return null;
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold" style={{ background: info.color + '20', color: info.color, border: `1px solid ${info.color}40` }}>
+      {level} — {info.label}
+    </span>
+  );
+};
+
+const Spinner = () => <div className="spinner mx-auto"></div>;
+
+// ============================================================
+// CHART WRAPPERS
+// ============================================================
+const ChartWrapper = ({ id, type, data, options, height = 280 }) => {
+  const canvasRef = useRef(null);
+  const chartRef = useRef(null);
+  useEffect(() => {
+    if (chartRef.current) chartRef.current.destroy();
+    if (canvasRef.current) {
+      chartRef.current = new Chart(canvasRef.current, { type, data, options });
+    }
+    return () => { if (chartRef.current) chartRef.current.destroy(); };
+  }, [JSON.stringify(data)]);
+  return <canvas ref={canvasRef} style={{ maxHeight: height }}></canvas>;
+};
+
+// ============================================================
+// SIDEBAR NAVIGATION
+// ============================================================
+const NAV_ITEMS = [
+  { id: 'overview', icon: '⊞', label: 'Overview Dashboard' },
+  { id: 'review', icon: '◉', label: 'Question Review' },
+  { id: 'comparison', icon: '⇌', label: 'Set A vs Set B' },
+  { id: 'compliance', icon: '✓', label: 'Compliance Report' },
+  { id: 'guidelines', icon: '⊕', label: 'Guideline Management' },
+];
+
+const Sidebar = ({ active, onNav, collapsed, onToggle }) => (
+  <div className={`sidebar text-white flex flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'} min-h-screen`}>
+    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      {!collapsed && (
+        <div>
+          <div className="text-sm font-bold text-teal-300 leading-tight">FE Moderation</div>
+          <div className="text-xs text-blue-300 opacity-80">AI Dashboard v1.0</div>
+        </div>
+      )}
+      <button onClick={onToggle} className="p-1.5 rounded hover:bg-white/10 text-white/70 hover:text-white ml-auto">
+        {collapsed ? '→' : '←'}
+      </button>
+    </div>
+    <nav className="flex-1 py-4 space-y-1 px-2">
+      {NAV_ITEMS.map(item => (
+        <button
+          key={item.id}
+          onClick={() => onNav(item.id)}
+          className={`nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/80 hover:text-white ${active === item.id ? 'active text-white' : ''}`}
+        >
+          <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+          {!collapsed && <span className="truncate">{item.label}</span>}
+        </button>
+      ))}
+    </nav>
+    {!collapsed && (
+      <div className="p-4 border-t border-white/10">
+        <div className="text-xs text-white/40">Java Programming</div>
+        <div className="text-xs text-white/40">DCS3223 • Sem 2 2024/25</div>
+        <div className="mt-2 text-xs text-yellow-400 font-medium">⚠ Demo Mode Active</div>
+      </div>
+    )}
+  </div>
+);
+
+// ============================================================
+// PAGE: OVERVIEW DASHBOARD
+// ============================================================
+const OverviewPage = ({ onNav }) => {
+  const allQ = [...SAMPLE_QUESTIONS_A, ...SAMPLE_QUESTIONS_B];
+  const compliant = allQ.filter(q => q.complianceStatus === 'compliant').length;
+  const flagged = allQ.filter(q => q.complianceStatus === 'flagged').length;
+  const warnings = allQ.filter(q => q.complianceStatus === 'warning').length;
+  const pending = allQ.filter(q => q.complianceStatus === 'pending').length;
+
+  const bloomDistA = Object.keys(BLOOM_LEVELS).map(l => SAMPLE_QUESTIONS_A.filter(q => q.bloomLevel === l).length);
+  const bloomDistB = Object.keys(BLOOM_LEVELS).map(l => SAMPLE_QUESTIONS_B.filter(q => q.bloomLevel === l).length);
+
+  const cloDistA = CLO_DATA.map(c => SAMPLE_QUESTIONS_A.filter(q => q.clo === c.id).reduce((s, q) => s + q.marks, 0));
+  const cloDistB = CLO_DATA.map(c => SAMPLE_QUESTIONS_B.filter(q => q.clo === c.id).reduce((s, q) => s + q.marks, 0));
+
+  const recentIssues = allQ.filter(q => q.issues.length > 0).map(q => ({
+    id: q.id, set: q.set, num: q.number, issue: q.issues[0], status: q.complianceStatus
+  }));
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Overview Dashboard</h1>
+          <p className="text-gray-500 text-sm mt-1">Java Programming (DCS3223) — Final Examination Moderation</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => onNav('review')} className="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+            ◉ Review Questions
+          </button>
+          <button onClick={() => onNav('compliance')} className="bg-navy-950 hover:bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2" style={{background:'#1e3a5f'}}>
+            ✓ Full Report
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Questions', value: allQ.length, sub: `Set A: ${SAMPLE_QUESTIONS_A.length} | Set B: ${SAMPLE_QUESTIONS_B.length}`, color: '#1e40af', icon: '📋' },
+          { label: 'Compliant', value: compliant, sub: `${Math.round(compliant/allQ.length*100)}% compliance rate`, color: '#15803d', icon: '✅' },
+          { label: 'Flagged Issues', value: flagged, sub: 'Require immediate review', color: '#dc2626', icon: '🚩' },
+          { label: 'Pending Review', value: pending + warnings, sub: 'Awaiting moderation', color: '#d97706', icon: '⏳' },
+        ].map((kpi, i) => (
+          <div key={i} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 card-hover">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">{kpi.icon}</span>
+              <span className="text-3xl font-bold" style={{ color: kpi.color }}>{kpi.value}</span>
+            </div>
+            <div className="font-semibold text-gray-800 text-sm">{kpi.label}</div>
+            <div className="text-xs text-gray-500 mt-1">{kpi.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bloom's Distribution */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-800 mb-1">Bloom's Taxonomy Distribution</h3>
+          <p className="text-xs text-gray-500 mb-4">Cognitive level spread across both sets</p>
+          <ChartWrapper id="bloom" type="bar" height={240} data={{
+            labels: Object.entries(BLOOM_LEVELS).map(([k,v]) => `${k}\n${v.label}`),
+            datasets: [
+              { label: 'Set A', data: bloomDistA, backgroundColor: '#1e40af', borderRadius: 5 },
+              { label: 'Set B', data: bloomDistB, backgroundColor: '#0d9488', borderRadius: 5 },
+            ]
+          }} options={{
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: 'top' }, tooltip: { mode: 'index' } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          }} />
+        </div>
+
+        {/* CLO Marks Distribution */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-800 mb-1">CLO Marks Distribution</h3>
+          <p className="text-xs text-gray-500 mb-4">Total marks allocated per CLO</p>
+          <ChartWrapper id="clo" type="bar" height={240} data={{
+            labels: CLO_DATA.map(c => c.id),
+            datasets: [
+              { label: 'Set A', data: cloDistA, backgroundColor: '#3b82f6', borderRadius: 5 },
+              { label: 'Set B', data: cloDistB, backgroundColor: '#14b8a6', borderRadius: 5 },
+            ]
+          }} options={{
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: 'top' } },
+            scales: { y: { beginAtZero: true } }
+          }} />
+        </div>
+      </div>
+
+      {/* Compliance Summary + Issues */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Compliance Pie */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+          <h3 className="font-semibold text-gray-800 mb-4">Compliance Overview</h3>
+          <ChartWrapper id="compliance-pie" type="doughnut" height={200} data={{
+            labels: ['Compliant', 'Flagged', 'Pending'],
+            datasets: [{ data: [compliant, flagged, allQ.length - compliant - flagged], backgroundColor: ['#22c55e','#ef4444','#94a3b8'], borderWidth: 0 }]
+          }} options={{
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            cutout: '65%'
+          }} />
+          <div className="mt-4 space-y-2">
+            {[
+              { label: 'Compliant', count: compliant, color: 'green' },
+              { label: 'Flagged', count: flagged, color: 'red' },
+              { label: 'Pending/Warning', count: allQ.length - compliant - flagged, color: 'yellow' },
+            ].map(item => (
+              <div key={item.label} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1.5">
+                  <StatusDot color={item.color} />
+                  {item.label}
+                </span>
+                <span className="font-semibold">{item.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Flagged Issues */}
+        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800">Flagged Issues</h3>
+            <button onClick={() => onNav('review')} className="text-teal-700 text-xs font-semibold hover:underline">View All →</button>
+          </div>
+          {recentIssues.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">✅ No flagged issues detected</div>
+          ) : (
+            <div className="space-y-3">
+              {recentIssues.map(issue => (
+                <div key={issue.id} className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-100">
+                  <span className="text-red-500 text-lg mt-0.5">🚩</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-gray-800">Set {issue.set} — Q{issue.num}</span>
+                      <Badge type="flagged">Flagged</Badge>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1 truncate">{issue.issue}</p>
+                  </div>
+                  <button onClick={() => onNav('review')} className="text-xs text-teal-700 font-medium hover:underline flex-shrink-0">Review</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick Set Summary */}
+          <div className="mt-5 pt-4 border-t border-gray-100 grid grid-cols-2 gap-4">
+            {['A', 'B'].map(set => {
+              const qs = set === 'A' ? SAMPLE_QUESTIONS_A : SAMPLE_QUESTIONS_B;
+              const totalMarks = qs.reduce((s, q) => s + q.marks, 0);
+              const flaggedCount = qs.filter(q => q.complianceStatus === 'flagged').length;
+              return (
+                <div key={set} className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm font-bold text-gray-700 mb-2">Set {set}</div>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <div className="flex justify-between"><span>Questions</span><strong>{qs.length}</strong></div>
+                    <div className="flex justify-between"><span>Total Marks</span><strong>{totalMarks}</strong></div>
+                    <div className="flex justify-between"><span>Flagged</span><strong className={flaggedCount > 0 ? 'text-red-600' : 'text-green-600'}>{flaggedCount}</strong></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* CLO Coverage Heatmap */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-4">CLO Coverage Matrix</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 pr-4 text-gray-600 font-medium w-24">CLO</th>
+                <th className="text-left py-2 pr-4 text-gray-600 font-medium">Description</th>
+                <th className="text-center py-2 px-3 text-gray-600 font-medium">Set A Qs</th>
+                <th className="text-center py-2 px-3 text-gray-600 font-medium">Set A Marks</th>
+                <th className="text-center py-2 px-3 text-gray-600 font-medium">Set B Qs</th>
+                <th className="text-center py-2 px-3 text-gray-600 font-medium">Set B Marks</th>
+                <th className="text-center py-2 px-3 text-gray-600 font-medium">Equivalency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CLO_DATA.map(clo => {
+                const aqsA = SAMPLE_QUESTIONS_A.filter(q => q.clo === clo.id);
+                const aqsB = SAMPLE_QUESTIONS_B.filter(q => q.clo === clo.id);
+                const marksA = aqsA.reduce((s, q) => s + q.marks, 0);
+                const marksB = aqsB.reduce((s, q) => s + q.marks, 0);
+                const diff = Math.abs(marksA - marksB);
+                const eq = diff === 0 ? 'Equivalent' : diff <= 4 ? 'Minor Diff' : 'Review';
+                const eqColor = diff === 0 ? 'compliant' : diff <= 4 ? 'warning' : 'flagged';
+                return (
+                  <tr key={clo.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3 pr-4"><span className="font-semibold text-blue-700">{clo.id}</span></td>
+                    <td className="py-3 pr-4 text-gray-600 text-xs max-w-xs">{clo.description}</td>
+                    <td className="py-3 px-3 text-center font-semibold">{aqsA.length}</td>
+                    <td className="py-3 px-3 text-center font-semibold text-blue-700">{marksA}</td>
+                    <td className="py-3 px-3 text-center font-semibold">{aqsB.length}</td>
+                    <td className="py-3 px-3 text-center font-semibold text-teal-700">{marksB}</td>
+                    <td className="py-3 px-3 text-center"><Badge type={eqColor}>{eq}</Badge></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// PAGE: QUESTION REVIEW
+// ============================================================
+const QuestionReviewPage = () => {
+  const [activeSet, setActiveSet] = useState('A');
+  const [selectedQ, setSelectedQ] = useState(null);
+  const [expanded, setExpanded] = useState({});
+  const [acceptedSuggestions, setAcceptedSuggestions] = useState({});
+  const [editedText, setEditedText] = useState({});
+  const [editingId, setEditingId] = useState(null);
+  const [filterBloom, setFilterBloom] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [analysing, setAnalysing] = useState(false);
+
+  const questions = activeSet === 'A' ? SAMPLE_QUESTIONS_A : SAMPLE_QUESTIONS_B;
+  const filtered = questions.filter(q => {
+    if (filterBloom !== 'all' && q.bloomLevel !== filterBloom) return false;
+    if (filterStatus !== 'all' && q.complianceStatus !== filterStatus) return false;
+    return true;
+  });
+
+  const selectedQuestion = selectedQ ? (questions.find(q => q.id === selectedQ) || null) : null;
+
+  const handleAnalyse = () => {
+    setAnalysing(true);
+    setTimeout(() => setAnalysing(false), 2000);
+  };
+
+  const handleAccept = (qId, idx) => {
+    setAcceptedSuggestions(prev => ({ ...prev, [`${qId}-${idx}`]: true }));
+  };
+
+  const handleEdit = (qId, text) => {
+    setEditingId(qId);
+    setEditedText(prev => ({ ...prev, [qId]: text }));
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Question Review</h1>
+          <p className="text-gray-500 text-sm mt-1">AI-assisted compliance analysis for individual questions</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {['A', 'B'].map(s => (
+            <button key={s} onClick={() => { setActiveSet(s); setSelectedQ(null); }}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold border transition-all ${activeSet === s ? 'bg-teal-700 text-white border-teal-700' : 'bg-white text-gray-700 border-gray-300 hover:border-teal-500'}`}>
+              Set {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-wrap gap-3 items-center">
+        <span className="text-sm font-medium text-gray-600">Filter by:</span>
+        <select value={filterBloom} onChange={e => setFilterBloom(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <option value="all">All Bloom Levels</option>
+          {Object.entries(BLOOM_LEVELS).map(([k, v]) => <option key={k} value={k}>{k} — {v.label}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500">
+          <option value="all">All Statuses</option>
+          <option value="compliant">Compliant</option>
+          <option value="flagged">Flagged</option>
+          <option value="warning">Warning</option>
+        </select>
+        <span className="text-sm text-gray-400 ml-auto">{filtered.length} of {questions.length} questions</span>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+        {/* Question List */}
+        <div className="xl:col-span-2 space-y-3">
+          {filtered.map(q => (
+            <div key={q.id} onClick={() => setSelectedQ(q.id)}
+              className={`bg-white rounded-xl p-4 shadow-sm border cursor-pointer transition-all ${selectedQ === q.id ? 'border-teal-500 ring-2 ring-teal-100' : 'border-gray-100 hover:border-gray-300'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <span className="font-semibold text-gray-800 text-sm">Q{q.number} ({q.section})</span>
+                    <BloomBadge level={q.bloomLevel} />
+                    <Badge type={q.complianceStatus}>{q.complianceStatus === 'compliant' ? '✓ Compliant' : q.complianceStatus === 'flagged' ? '🚩 Flagged' : '⚠ Warning'}</Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 line-clamp-2">{editedText[q.id] || q.text}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                    <span>{q.clo}</span>
+                    <span>•</span>
+                    <span>{q.marks} marks</span>
+                    <span>•</span>
+                    <span>{q.topic}</span>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-teal-700 flex-shrink-0">{q.marks}m</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Question Detail Panel */}
+        <div className="xl:col-span-3">
+          {!selectedQuestion ? (
+            <div className="bg-white rounded-xl p-12 shadow-sm border border-gray-100 text-center">
+              <div className="text-5xl mb-4">◉</div>
+              <h3 className="font-semibold text-gray-700 mb-2">Select a Question</h3>
+              <p className="text-sm text-gray-400">Click any question on the left to view its AI compliance analysis and recommendations.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {/* Q Header */}
+              <div className="p-5 border-b border-gray-100" style={{background:'#f8fafc'}}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-sm font-bold text-gray-800">Set {selectedQuestion.set} — Q{selectedQuestion.number}</span>
+                      <Badge type={selectedQuestion.complianceStatus}>
+                        {selectedQuestion.complianceStatus === 'compliant' ? '✓ Compliant' : selectedQuestion.complianceStatus === 'flagged' ? '🚩 Flagged' : '⚠ Warning'}
+                      </Badge>
+                      <BloomBadge level={selectedQuestion.bloomLevel} />
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                      <span>📚 {selectedQuestion.clo}</span>
+                      <span>🏷 {selectedQuestion.topic}</span>
+                      <span>📊 {selectedQuestion.marks} marks</span>
+                      <span>✏️ {selectedQuestion.section}</span>
+                    </div>
+                  </div>
+                  <button onClick={handleAnalyse} disabled={analysing}
+                    className="bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 disabled:opacity-60">
+                    {analysing ? <><span className="spinner" style={{width:14,height:14,borderWidth:2}}></span> Analysing…</> : '🤖 Re-analyse'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Question Text */}
+              <div className="p-5 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Question Text</h4>
+                  {editingId === selectedQuestion.id
+                    ? <button onClick={() => setEditingId(null)} className="text-xs text-teal-700 font-semibold hover:underline">Save Edit</button>
+                    : <button onClick={() => handleEdit(selectedQuestion.id, selectedQuestion.text)} className="text-xs text-gray-500 hover:text-gray-700 font-semibold">✏️ Edit</button>}
+                </div>
+                {editingId === selectedQuestion.id ? (
+                  <textarea className="w-full border border-teal-300 rounded-lg p-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none"
+                    rows={4} value={editedText[selectedQuestion.id] || selectedQuestion.text}
+                    onChange={e => setEditedText(prev => ({ ...prev, [selectedQuestion.id]: e.target.value }))} />
+                ) : (
+                  <p className="text-gray-800 text-sm leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    {editedText[selectedQuestion.id] || selectedQuestion.text}
+                  </p>
+                )}
+              </div>
+
+              {/* AI Analysis Scores */}
+              <div className="p-5 border-b border-gray-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">AI Analysis</h4>
+                  <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Demo Mode</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  {[
+                    { label: 'Clarity', score: selectedQuestion.aiAnalysis.clarity, color: '#3b82f6' },
+                    { label: 'Cognitive Alignment', score: selectedQuestion.aiAnalysis.cognitiveAlignment, color: '#0d9488' },
+                    { label: 'Grammar', score: selectedQuestion.aiAnalysis.grammarScore, color: '#8b5cf6' },
+                  ].map(s => (
+                    <div key={s.label} className="text-center">
+                      <div className="text-2xl font-bold mb-1" style={{color:s.color}}>{s.score}</div>
+                      <div className="text-xs text-gray-500 mb-1">{s.label}</div>
+                      <ScoreBar score={s.score} color={s.color} />
+                    </div>
+                  ))}
+                </div>
+                <div className={`rounded-lg p-3 text-sm text-gray-700 ${selectedQuestion.complianceStatus === 'flagged' ? 'bg-red-50 border border-red-100' : 'bg-teal-50 border border-teal-100'}`}>
+                  {selectedQuestion.aiAnalysis.feedback}
+                </div>
+              </div>
+
+              {/* Issues */}
+              {selectedQuestion.issues.length > 0 && (
+                <div className="p-5 border-b border-gray-100">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Issues Detected</h4>
+                  <ul className="space-y-2">
+                    {selectedQuestion.issues.map((issue, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-red-500 mt-0.5">⚠</span>
+                        <span className="text-red-700">{issue}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              {selectedQuestion.aiAnalysis.suggestions.length > 0 && (
+                <div className="p-5 border-b border-gray-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">AI Recommendations</h4>
+                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Requires lecturer approval</span>
+                  </div>
+                  <div className="space-y-3">
+                    {selectedQuestion.aiAnalysis.suggestions.map((sug, i) => {
+                      const key = `${selectedQuestion.id}-${i}`;
+                      const accepted = acceptedSuggestions[key];
+                      return (
+                        <div key={i} className={`rounded-lg p-3 border text-sm ${accepted ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-100'}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={accepted ? 'text-green-700' : 'text-blue-800'}>{sug}</p>
+                            {accepted ? (
+                              <span className="text-green-600 text-xs font-semibold flex-shrink-0">✓ Accepted</span>
+                            ) : (
+                              <button onClick={() => handleAccept(selectedQuestion.id, i)}
+                                className="flex-shrink-0 text-xs bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 px-2 py-1 rounded font-semibold">
+                                Accept
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata Footer */}
+              <div className="p-5">
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-gray-500 mb-1">Action Verb Used</div>
+                    <div className="font-semibold text-gray-800">{selectedQuestion.bloomVerb}</div>
+                    {selectedQuestion.suggestedVerb !== selectedQuestion.bloomVerb && (
+                      <div className="text-teal-600 mt-1">→ Suggested: {selectedQuestion.suggestedVerb}</div>
+                    )}
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-gray-500 mb-1">Bloom's Level Verbs</div>
+                    <div className="text-gray-700">{BLOOM_LEVELS[selectedQuestion.bloomLevel]?.verbs.slice(0, 4).join(', ')}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// PAGE: SET A vs SET B COMPARISON
+// ============================================================
+const ComparisonPage = () => {
+  const [activeTab, setActiveTab] = useState('bloom');
+
+  const totalA = SAMPLE_QUESTIONS_A.reduce((s, q) => s + q.marks, 0);
+  const totalB = SAMPLE_QUESTIONS_B.reduce((s, q) => s + q.marks, 0);
+
+  const bloomA = Object.keys(BLOOM_LEVELS).map(l => SAMPLE_QUESTIONS_A.filter(q => q.bloomLevel === l).length);
+  const bloomB = Object.keys(BLOOM_LEVELS).map(l => SAMPLE_QUESTIONS_B.filter(q => q.bloomLevel === l).length);
+
+  const cloMarksA = CLO_DATA.map(c => SAMPLE_QUESTIONS_A.filter(q => q.clo === c.id).reduce((s, q) => s + q.marks, 0));
+  const cloMarksB = CLO_DATA.map(c => SAMPLE_QUESTIONS_B.filter(q => q.clo === c.id).reduce((s, q) => s + q.marks, 0));
+
+  const topicsA = [...new Set(SAMPLE_QUESTIONS_A.map(q => q.topic))];
+  const topicsB = [...new Set(SAMPLE_QUESTIONS_B.map(q => q.topic))];
+  const allTopics = [...new Set([...topicsA, ...topicsB])];
+
+  const sectionMarksA = { 'Section A': 0, 'Section B': 0, 'Section C': 0 };
+  const sectionMarksB = { 'Section A': 0, 'Section B': 0, 'Section C': 0 };
+  SAMPLE_QUESTIONS_A.forEach(q => { if (sectionMarksA[q.section] !== undefined) sectionMarksA[q.section] += q.marks; });
+  SAMPLE_QUESTIONS_B.forEach(q => { if (sectionMarksB[q.section] !== undefined) sectionMarksB[q.section] += q.marks; });
+
+  const avgDifficultyA = SAMPLE_QUESTIONS_A.reduce((s, q) => s + parseInt(q.bloomLevel.slice(1)), 0) / SAMPLE_QUESTIONS_A.length;
+  const avgDifficultyB = SAMPLE_QUESTIONS_B.reduce((s, q) => s + parseInt(q.bloomLevel.slice(1)), 0) / SAMPLE_QUESTIONS_B.length;
+
+  const TABS = [
+    { id: 'bloom', label: "Bloom's Taxonomy" },
+    { id: 'clo', label: 'CLO Coverage' },
+    { id: 'marks', label: 'Mark Distribution' },
+    { id: 'questions', label: 'Side-by-Side' },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Set A vs Set B Comparison</h1>
+        <p className="text-gray-500 text-sm mt-1">Equivalency analysis across cognitive levels, CLOs, and mark distribution</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Marks', a: totalA, b: totalB, icon: '📊', good: totalA === totalB },
+          { label: 'Avg Difficulty', a: avgDifficultyA.toFixed(2), b: avgDifficultyB.toFixed(2), icon: '🧠', good: Math.abs(avgDifficultyA - avgDifficultyB) < 0.3 },
+          { label: 'Questions', a: SAMPLE_QUESTIONS_A.length, b: SAMPLE_QUESTIONS_B.length, icon: '📋', good: SAMPLE_QUESTIONS_A.length === SAMPLE_QUESTIONS_B.length },
+          { label: 'CLOs Covered', a: new Set(SAMPLE_QUESTIONS_A.map(q=>q.clo)).size, b: new Set(SAMPLE_QUESTIONS_B.map(q=>q.clo)).size, icon: '🎯', good: new Set(SAMPLE_QUESTIONS_A.map(q=>q.clo)).size === new Set(SAMPLE_QUESTIONS_B.map(q=>q.clo)).size },
+        ].map((item, i) => (
+          <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xl">{item.icon}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${item.good ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {item.good ? '≈ Equivalent' : '≠ Review'}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500 mb-2">{item.label}</div>
+            <div className="flex gap-3">
+              <div className="flex-1 text-center bg-blue-50 rounded-lg py-2">
+                <div className="text-lg font-bold text-blue-700">{item.a}</div>
+                <div className="text-xs text-blue-500">Set A</div>
+              </div>
+              <div className="flex-1 text-center bg-teal-50 rounded-lg py-2">
+                <div className="text-lg font-bold text-teal-700">{item.b}</div>
+                <div className="text-xs text-teal-500">Set B</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="flex border-b border-gray-100 px-4 overflow-x-auto">
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap mr-1 ${activeTab === tab.id ? 'active' : 'text-gray-500 hover:text-gray-700'}`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5">
+          {/* Bloom's Tab */}
+          {activeTab === 'bloom' && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-3 text-sm">Question Count by Bloom's Level</h4>
+                  <ChartWrapper id="bloom-compare" type="bar" height={260} data={{
+                    labels: Object.entries(BLOOM_LEVELS).map(([k,v]) => `${k} ${v.label}`),
+                    datasets: [
+                      { label: 'Set A', data: bloomA, backgroundColor: '#1e40af', borderRadius: 4 },
+                      { label: 'Set B', data: bloomB, backgroundColor: '#0d9488', borderRadius: 4 },
+                    ]
+                  }} options={{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true,ticks:{stepSize:1}}} }} />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-3 text-sm">Bloom's Distribution (Radar)</h4>
+                  <ChartWrapper id="bloom-radar" type="radar" height={260} data={{
+                    labels: Object.entries(BLOOM_LEVELS).map(([k,v]) => `${k}\n${v.label}`),
+                    datasets: [
+                      { label: 'Set A', data: bloomA, backgroundColor: 'rgba(30,64,175,0.15)', borderColor: '#1e40af', pointBackgroundColor: '#1e40af' },
+                      { label: 'Set B', data: bloomB, backgroundColor: 'rgba(13,148,136,0.15)', borderColor: '#0d9488', pointBackgroundColor: '#0d9488' },
+                    ]
+                  }} options={{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{r:{beginAtZero:true, ticks:{stepSize:1}}} }} />
+                </div>
+              </div>
+              {/* Bloom Table */}
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Level</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Name</th>
+                      <th className="text-center px-4 py-3 font-semibold text-blue-700">Set A (Qs)</th>
+                      <th className="text-center px-4 py-3 font-semibold text-teal-700">Set B (Qs)</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-600">Diff</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(BLOOM_LEVELS).map(([level, info], i) => {
+                      const a = bloomA[i]; const b = bloomB[i]; const diff = Math.abs(a - b);
+                      return (
+                        <tr key={level} className="border-t border-gray-50 hover:bg-gray-50">
+                          <td className="px-4 py-3"><span className="font-bold" style={{color:info.color}}>{level}</span></td>
+                          <td className="px-4 py-3 text-gray-700">{info.label}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-blue-700">{a}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-teal-700">{b}</td>
+                          <td className="px-4 py-3 text-center text-gray-500">{diff === 0 ? '—' : `±${diff}`}</td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge type={diff === 0 ? 'compliant' : diff === 1 ? 'warning' : 'flagged'}>
+                              {diff === 0 ? 'Match' : diff === 1 ? 'Minor' : 'Mismatch'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* CLO Tab */}
+          {activeTab === 'clo' && (
+            <div className="space-y-5">
+              <div>
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm">Marks Allocation per CLO</h4>
+                <ChartWrapper id="clo-compare" type="bar" height={260} data={{
+                  labels: CLO_DATA.map(c => c.id),
+                  datasets: [
+                    { label: 'Set A', data: cloMarksA, backgroundColor: '#1e40af', borderRadius: 4 },
+                    { label: 'Set B', data: cloMarksB, backgroundColor: '#0d9488', borderRadius: 4 },
+                  ]
+                }} options={{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true}} }} />
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">CLO</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
+                      <th className="text-center px-4 py-3 font-semibold text-blue-700">Set A Marks</th>
+                      <th className="text-center px-4 py-3 font-semibold text-teal-700">Set B Marks</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-600">Variance</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-600">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CLO_DATA.map((clo, i) => {
+                      const a = cloMarksA[i]; const b = cloMarksB[i]; const diff = Math.abs(a - b);
+                      return (
+                        <tr key={clo.id} className="border-t border-gray-50 hover:bg-gray-50">
+                          <td className="px-4 py-3 font-semibold text-blue-700">{clo.id}</td>
+                          <td className="px-4 py-3 text-gray-600 text-xs max-w-xs">{clo.description}</td>
+                          <td className="px-4 py-3 text-center font-bold text-blue-700">{a}</td>
+                          <td className="px-4 py-3 text-center font-bold text-teal-700">{b}</td>
+                          <td className="px-4 py-3 text-center text-gray-500">{diff === 0 ? '—' : `±${diff}m`}</td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge type={diff === 0 ? 'compliant' : diff <= 4 ? 'warning' : 'flagged'}>
+                              {diff === 0 ? 'Equivalent' : diff <= 4 ? 'Minor Diff' : 'Review'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Marks Tab */}
+          {activeTab === 'marks' && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-3 text-sm">Marks by Section</h4>
+                  <ChartWrapper id="section-marks" type="bar" height={240} data={{
+                    labels: ['Section A', 'Section B', 'Section C'],
+                    datasets: [
+                      { label: 'Set A', data: Object.values(sectionMarksA), backgroundColor: '#1e40af', borderRadius: 4 },
+                      { label: 'Set B', data: Object.values(sectionMarksB), backgroundColor: '#0d9488', borderRadius: 4 },
+                    ]
+                  }} options={{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true}} }} />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-3 text-sm">Individual Question Marks</h4>
+                  <ChartWrapper id="q-marks" type="bar" height={240} data={{
+                    labels: SAMPLE_QUESTIONS_A.map(q => `Q${q.number}`),
+                    datasets: [
+                      { label: 'Set A', data: SAMPLE_QUESTIONS_A.map(q => q.marks), backgroundColor: '#3b82f6', borderRadius: 4 },
+                      { label: 'Set B', data: SAMPLE_QUESTIONS_B.map(q => q.marks), backgroundColor: '#14b8a6', borderRadius: 4 },
+                    ]
+                  }} options={{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}, scales:{y:{beginAtZero:true}} }} />
+                </div>
+              </div>
+              {/* Mark Summary */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-700 mb-3 text-sm">Mark Summary</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  {[
+                    { label: 'Total Set A', value: `${totalA} marks` },
+                    { label: 'Total Set B', value: `${totalB} marks` },
+                    { label: 'Difference', value: `${Math.abs(totalA - totalB)} marks`, highlight: true },
+                    { label: 'Equivalency', value: totalA === totalB ? '✓ Equal' : '⚠ Review', good: totalA === totalB },
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white rounded-lg p-3 text-center shadow-sm">
+                      <div className="text-xs text-gray-500 mb-1">{item.label}</div>
+                      <div className={`font-bold ${item.good === false ? 'text-amber-600' : item.good ? 'text-green-600' : 'text-gray-800'}`}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Side-by-Side Tab */}
+          {activeTab === 'questions' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="text-left px-3 py-3 font-semibold text-gray-600">No.</th>
+                    <th className="text-left px-3 py-3 font-semibold text-blue-700">Set A Question</th>
+                    <th className="text-center px-3 py-3 font-semibold text-blue-700">Level</th>
+                    <th className="text-center px-3 py-3 font-semibold text-blue-700">Marks</th>
+                    <th className="text-center px-3 py-3 font-semibold text-gray-400">≈</th>
+                    <th className="text-left px-3 py-3 font-semibold text-teal-700">Set B Question</th>
+                    <th className="text-center px-3 py-3 font-semibold text-teal-700">Level</th>
+                    <th className="text-center px-3 py-3 font-semibold text-teal-700">Marks</th>
+                    <th className="text-center px-3 py-3 font-semibold text-gray-600">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SAMPLE_QUESTIONS_A.map((qa, i) => {
+                    const qb = SAMPLE_QUESTIONS_B[i];
+                    const markDiff = Math.abs(qa.marks - (qb ? qb.marks : 0));
+                    const levelMatch = qb && qa.bloomLevel === qb.bloomLevel;
+                    const eq = markDiff === 0 && levelMatch ? 'compliant' : markDiff <= 2 && levelMatch ? 'warning' : 'flagged';
+                    return (
+                      <tr key={qa.id} className="border-t border-gray-50 hover:bg-gray-50">
+                        <td className="px-3 py-3 font-bold text-gray-500">Q{qa.number}</td>
+                        <td className="px-3 py-3 max-w-xs">
+                          <p className="text-gray-700 text-xs line-clamp-2">{qa.text}</p>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            <Badge type={qa.complianceStatus} small>{qa.clo}</Badge>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center"><BloomBadge level={qa.bloomLevel} /></td>
+                        <td className="px-3 py-3 text-center font-bold text-blue-700">{qa.marks}m</td>
+                        <td className="px-3 py-3 text-center text-gray-300 font-bold">↔</td>
+                        <td className="px-3 py-3 max-w-xs">
+                          {qb ? (
+                            <>
+                              <p className="text-gray-700 text-xs line-clamp-2">{qb.text}</p>
+                              <div className="flex gap-1 mt-1 flex-wrap">
+                                <Badge type={qb.complianceStatus} small>{qb.clo}</Badge>
+                              </div>
+                            </>
+                          ) : <span className="text-gray-400 text-xs">—</span>}
+                        </td>
+                        <td className="px-3 py-3 text-center">{qb && <BloomBadge level={qb.bloomLevel} />}</td>
+                        <td className="px-3 py-3 text-center font-bold text-teal-700">{qb ? `${qb.marks}m` : '—'}</td>
+                        <td className="px-3 py-3 text-center"><Badge type={eq}>{eq === 'compliant' ? '✓' : eq === 'warning' ? '~' : '!'}</Badge></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Equivalency Verdict */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-3">Equivalency Verdict & Recommendations</h3>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+          <span className="text-2xl">✅</span>
+          <div>
+            <div className="font-semibold text-green-800 text-sm">Sets are largely equivalent</div>
+            <p className="text-xs text-green-700 mt-1">Both sets cover the same CLOs, Bloom's taxonomy levels, and total marks ({totalA}m each). One question in Set A (Q6) is flagged and should be revised before both sets can be cleared for use.</p>
+          </div>
+        </div>
+        <ul className="space-y-2">
+          {[
+            { icon: '🚩', text: 'Set A Q6: Revise vague question with appropriate Bloom\'s verb and specific algorithm requirement.', type: 'flagged' },
+            { icon: 'ℹ️', text: 'Both sets share equivalent C1–C6 cognitive level distribution — good balance achieved.', type: 'compliant' },
+            { icon: 'ℹ️', text: 'Code snippets for Set A Q4 and Set B Q4 must be attached before finalisation.', type: 'warning' },
+            { icon: '✅', text: 'Mark allocation per question is identical across both sets — equivalency maintained.', type: 'compliant' },
+          ].map((item, i) => (
+            <li key={i} className={`flex items-start gap-2 text-sm p-2 rounded-lg ${item.type === 'flagged' ? 'bg-red-50' : item.type === 'warning' ? 'bg-yellow-50' : 'bg-gray-50'}`}>
+              <span>{item.icon}</span>
+              <span className={item.type === 'flagged' ? 'text-red-700' : item.type === 'warning' ? 'text-amber-700' : 'text-gray-700'}>{item.text}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// PAGE: COMPLIANCE REPORT
+// ============================================================
+const ComplianceReportPage = () => {
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  const allQ = [...SAMPLE_QUESTIONS_A, ...SAMPLE_QUESTIONS_B];
+  const compliant = allQ.filter(q => q.complianceStatus === 'compliant');
+  const flagged = allQ.filter(q => q.complianceStatus === 'flagged');
+  const overallScore = Math.round(compliant.length / allQ.length * 100);
+
+  const handleGenerate = () => {
+    setGenerating(true);
+    setTimeout(() => { setGenerating(false); setGenerated(true); }, 2500);
+  };
+
+  const handleExport = () => {
+    // Simple text export
+    const content = [
+      'FE QUESTION MODERATION REPORT',
+      '==============================',
+      `Course: Java Programming (DCS3223)`,
+      `Semester: 2, 2024/25`,
+      `Generated: ${new Date().toLocaleString()}`,
+      `Mode: DEMONSTRATION — Simulated AI Analysis`,
+      '',
+      'SUMMARY',
+      `Total Questions: ${allQ.length}`,
+      `Compliant: ${compliant.length} (${overallScore}%)`,
+      `Flagged: ${flagged.length}`,
+      `Overall Compliance: ${overallScore}%`,
+      '',
+      'FLAGGED QUESTIONS:',
+      ...flagged.map(q => `- Set ${q.set} Q${q.number}: ${q.issues.join('; ')}`),
+      '',
+      'RECOMMENDATIONS:',
+      '1. Revise Set A Q6 with proper Bloom\'s verb and specific requirements.',
+      '2. Attach code snippets for Set A Q4 and Set B Q4.',
+      '3. Both sets are ready for moderation after addressing flagged items.',
+      '',
+      'NOTE: This report is generated in Demonstration Mode.',
+      'Results are simulated and do NOT constitute actual compliance verification.',
+      'Actual AI compliance checking requires integration with an authorised AI service.',
+    ].join('\n');
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'FE_Moderation_Report.txt'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Compliance Report</h1>
+          <p className="text-gray-500 text-sm mt-1">Detailed moderation findings and suggested improvements</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={handleGenerate} disabled={generating}
+            className="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-60">
+            {generating ? <><span className="spinner" style={{width:14,height:14,borderWidth:2}}></span> Generating…</> : '🤖 Generate AI Report'}
+          </button>
+          {generated && (
+            <button onClick={handleExport} className="bg-white border border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+              ⬇ Export Report
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Demo warning */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+        <span className="text-xl">⚠️</span>
+        <div className="text-sm">
+          <span className="font-semibold text-yellow-800">Demonstration Mode:</span>
+          <span className="text-yellow-700"> The analysis below is generated from synthetic data and simulated AI rules. It does NOT represent actual compliance verification. To enable live AI analysis, connect to an authorised AI service in the Guideline Management settings.</span>
+        </div>
+      </div>
+
+      {/* Overall Score */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="text-center">
+            <div className="text-6xl font-black" style={{color: overallScore >= 80 ? '#15803d' : '#d97706'}}>{overallScore}%</div>
+            <div className="text-sm font-semibold text-gray-600 mt-1">Overall Compliance Score</div>
+            <div className="text-xs text-gray-400">Java Programming FE 2024/25</div>
+          </div>
+          <div className="flex-1 min-w-48">
+            <div className="space-y-3">
+              {[
+                { label: 'Question Compliance', score: overallScore, color: '#15803d' },
+                { label: 'Bloom\'s Alignment', score: 94, color: '#1e40af' },
+                { label: 'CLO Coverage', score: 100, color: '#0d9488' },
+                { label: 'Mark Distribution', score: 98, color: '#8b5cf6' },
+                { label: 'Verb Appropriateness', score: 88, color: '#f97316' },
+              ].map(item => (
+                <div key={item.label}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-600">{item.label}</span>
+                    <span className="font-semibold">{item.score}%</span>
+                  </div>
+                  <ScoreBar score={item.score} color={item.color} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2 min-w-40">
+            {[
+              { label: 'Questions Reviewed', value: allQ.length, icon: '📋' },
+              { label: 'Compliant', value: compliant.length, icon: '✅' },
+              { label: 'Flagged', value: flagged.length, icon: '🚩' },
+              { label: 'AI Suggestions', value: allQ.reduce((s,q) => s + q.aiAnalysis.suggestions.length, 0), icon: '💡' },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-2 text-sm">
+                <span>{item.icon}</span>
+                <span className="text-gray-600">{item.label}:</span>
+                <span className="font-semibold">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Flagged Questions Detail */}
+      {flagged.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-2">
+            <span className="text-red-500">🚩</span>
+            <h3 className="font-semibold text-red-800">Flagged Questions — Action Required</h3>
+            <span className="ml-auto text-xs text-red-600">{flagged.length} question(s) require revision</span>
+          </div>
+          {flagged.map(q => (
+            <div key={q.id} className="p-5 border-b border-gray-50 last:border-0">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <span className="font-bold text-gray-800">Set {q.set} — Q{q.number}</span>
+                    <BloomBadge level={q.bloomLevel} />
+                    <Badge type="flagged">Flagged</Badge>
+                    <span className="text-xs text-gray-500">{q.clo} · {q.marks} marks</span>
+                  </div>
+                  <p className="text-sm text-gray-700 bg-red-50 rounded-lg p-3 border border-red-100 mb-3">"{q.text}"</p>
+                  <div className="space-y-1 mb-3">
+                    {q.issues.map((issue, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm text-red-700">
+                        <span className="text-red-400 mt-0.5">⚠</span> {issue}
+                      </div>
+                    ))}
+                  </div>
+                  {q.aiAnalysis.suggestions.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-500 mb-2">AI SUGGESTIONS:</div>
+                      <ul className="space-y-1">
+                        {q.aiAnalysis.suggestions.map((sug, i) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 rounded p-2">
+                            <span className="text-blue-400 mt-0.5 flex-shrink-0">💡</span> {sug}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* All Questions Summary Table */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-800">Full Question Analysis Summary</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {['Set', 'Q', 'Section', 'CLO', 'Bloom', 'Marks', 'Clarity', 'Cognitive', 'Grammar', 'Verb', 'Status'].map(h => (
+                  <th key={h} className="px-3 py-3 text-left font-semibold text-gray-600 text-xs whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allQ.map(q => (
+                <tr key={q.id} className="border-t border-gray-50 hover:bg-gray-50">
+                  <td className="px-3 py-2.5 font-semibold text-gray-700">{q.set}</td>
+                  <td className="px-3 py-2.5 font-semibold text-gray-700">Q{q.number}</td>
+                  <td className="px-3 py-2.5 text-gray-500 text-xs">{q.section}</td>
+                  <td className="px-3 py-2.5"><span className="text-blue-700 font-semibold">{q.clo}</span></td>
+                  <td className="px-3 py-2.5"><BloomBadge level={q.bloomLevel} /></td>
+                  <td className="px-3 py-2.5 font-semibold">{q.marks}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{width:`${q.aiAnalysis.clarity}%`,background:'#3b82f6'}}></div>
+                      </div>
+                      <span className="text-xs">{q.aiAnalysis.clarity}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{width:`${q.aiAnalysis.cognitiveAlignment}%`,background:'#0d9488'}}></div>
+                      </div>
+                      <span className="text-xs">{q.aiAnalysis.cognitiveAlignment}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-1">
+                      <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{width:`${q.aiAnalysis.grammarScore}%`,background:'#8b5cf6'}}></div>
+                      </div>
+                      <span className="text-xs">{q.aiAnalysis.grammarScore}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className="text-xs">{q.bloomVerb}</span>
+                    {q.bloomVerb !== q.suggestedVerb && (
+                      <div className="text-xs text-teal-600">→ {q.suggestedVerb}</div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <Badge type={q.complianceStatus}>
+                      {q.complianceStatus === 'compliant' ? '✓' : q.complianceStatus === 'flagged' ? '🚩' : '⚠'}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Report Footer */}
+      <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 text-sm text-gray-600">
+        <h4 className="font-semibold text-gray-700 mb-2">Report Notes</h4>
+        <ul className="space-y-1 text-xs list-disc list-inside">
+          <li>This report is generated in <strong>Demonstration Mode</strong> using synthetic data.</li>
+          <li>FAIST guidelines have not been uploaded — compliance is assessed against built-in Bloom's Taxonomy rules only.</li>
+          <li>Questions with status "Pending Guideline Verification" require FAIST upload before final clearance.</li>
+          <li>AI suggestions require explicit lecturer approval before implementation. The AI does not modify questions automatically.</li>
+          <li>For production use, connect to an authorised AI model via the API key configuration in Guideline Management.</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// PAGE: GUIDELINE MANAGEMENT
+// ============================================================
+const GuidelineManagementPage = () => {
+  const [faistUploaded, setFaistUploaded] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [apiModel, setApiModel] = useState('gpt-4o');
+  const [apiSaved, setApiSaved] = useState(false);
+  const [courseName, setCourseName] = useState('Java Programming');
+  const [courseCode, setCourseCode] = useState('DCS3223');
+  const [semester, setSemester] = useState('Semester 2, 2024/25');
+  const [cloItems, setCloItems] = useState(CLO_DATA.map(c => ({ ...c })));
+
+  const handleFaistUpload = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFaistUploaded(true);
+    }
+  };
+
+  const handleApiSave = () => {
+    setApiSaved(true);
+    setTimeout(() => setApiSaved(false), 3000);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Guideline Management</h1>
+        <p className="text-gray-500 text-sm mt-1">Upload FAIST guidelines, configure CLOs, and manage AI service integration</p>
+      </div>
+
+      {/* Course Information */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          📚 Course Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { label: 'Course Name', value: courseName, set: setCourseName },
+            { label: 'Course Code', value: courseCode, set: setCourseCode },
+            { label: 'Semester', value: semester, set: setSemester },
+          ].map(field => (
+            <div key={field.label}>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">{field.label}</label>
+              <input type="text" value={field.value} onChange={e => field.set(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* FAIST Upload */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          📄 FAIST Guidelines Upload
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">Upload your institution's FAIST (Final Assessment Instrument Specification Template) guidelines. These are used to validate questions against institutional assessment requirements.</p>
+        {faistUploaded ? (
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+            <span className="text-2xl">✅</span>
+            <div>
+              <div className="font-semibold text-green-800 text-sm">FAIST Guidelines Uploaded</div>
+              <div className="text-xs text-green-600">faist_guidelines_2024.pdf · Uploaded just now</div>
+            </div>
+            <button onClick={() => setFaistUploaded(false)} className="ml-auto text-xs text-red-500 hover:underline">Remove</button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-teal-400 rounded-xl p-8 cursor-pointer transition-colors bg-gray-50 hover:bg-teal-50">
+            <span className="text-4xl mb-3">📎</span>
+            <span className="text-sm font-semibold text-gray-700 mb-1">Upload FAIST Guidelines</span>
+            <span className="text-xs text-gray-400">PDF, DOCX or TXT · Max 10MB</span>
+            <span className="mt-3 text-xs px-4 py-1.5 bg-teal-700 text-white rounded-lg font-semibold">Choose File</span>
+            <input type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={handleFaistUpload} />
+          </label>
+        )}
+        {!faistUploaded && (
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            ⚠ Without FAIST guidelines, compliance checking is limited to Bloom's Taxonomy rules only. Questions will be marked as "Pending Guideline Verification" for FAIST-specific checks.
+          </div>
+        )}
+      </div>
+
+      {/* CLO Management */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          🎯 Course Learning Outcomes (CLOs)
+        </h3>
+        <div className="space-y-3">
+          {cloItems.map((clo, i) => (
+            <div key={clo.id} className="flex gap-3 items-start p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <span className="text-xs font-bold text-blue-700 mt-2 w-12 flex-shrink-0">{clo.id}</span>
+              <div className="flex-1 min-w-0">
+                <input type="text" value={clo.description}
+                  onChange={e => setCloItems(prev => prev.map((c, j) => j === i ? { ...c, description: e.target.value } : c))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white" />
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-gray-500">Weight:</span>
+                <input type="number" value={clo.weight} min={1} max={100}
+                  onChange={e => setCloItems(prev => prev.map((c, j) => j === i ? { ...c, weight: parseInt(e.target.value) } : c))}
+                  className="w-14 border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-400" />
+                <span className="text-xs text-gray-500">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button className="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Save CLOs</button>
+        </div>
+      </div>
+
+      {/* Bloom's Reference */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          🧠 Bloom's Taxonomy Reference
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.entries(BLOOM_LEVELS).map(([level, info]) => (
+            <div key={level} className="rounded-lg p-3 border" style={{borderColor:info.color+'30',background:info.color+'08'}}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="font-bold text-sm" style={{color:info.color}}>{level}</span>
+                <span className="font-semibold text-sm text-gray-700">— {info.label}</span>
+              </div>
+              <div className="text-xs text-gray-500 flex flex-wrap gap-1">
+                {info.verbs.slice(0,6).map(v => (
+                  <span key={v} className="px-1.5 py-0.5 rounded" style={{background:info.color+'15',color:info.color}}>{v}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* AI Service Configuration */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          🤖 AI Service Configuration
+        </h3>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-xs text-blue-700">
+          <strong>Privacy Notice:</strong> Examination questions are sensitive materials. Before connecting to any AI service, ensure you have explicit authorisation from your institution and that the AI provider complies with your institution's data protection policy. Do NOT transmit confidential examination materials to external services without approval.
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">AI Model</label>
+            <select value={apiModel} onChange={e => setApiModel(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+              <option value="gpt-4o">OpenAI GPT-4o</option>
+              <option value="gpt-4-turbo">OpenAI GPT-4 Turbo</option>
+              <option value="claude-3-5">Anthropic Claude 3.5</option>
+              <option value="gemini-pro">Google Gemini Pro</option>
+              <option value="watsonx">IBM watsonx.ai</option>
+              <option value="local">Local/Self-Hosted Model</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">API Key</label>
+            <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+              placeholder="sk-… or leave blank for Demo Mode"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            {apiKey ? '🟡 API key entered — connect to enable live analysis' : '🟡 No API key — running in Demonstration Mode'}
+          </div>
+          <div className="flex gap-2">
+            <button disabled={!apiKey} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold disabled:opacity-40 hover:border-gray-400">
+              Test Connection
+            </button>
+            <button onClick={handleApiSave} className="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">
+              {apiSaved ? '✓ Saved!' : 'Save Settings'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Assessment Specifications Upload */}
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          📋 Assessment Specifications
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { label: 'Question Specification Table (QST)', sub: 'Question distribution by section and CLO', icon: '📊' },
+            { label: 'Assessment Rubric', sub: 'Marking scheme and rubric template', icon: '📝' },
+          ].map(spec => (
+            <label key={spec.label} className="flex items-center gap-3 border border-dashed border-gray-300 hover:border-teal-400 rounded-xl p-4 cursor-pointer bg-gray-50 hover:bg-teal-50 transition-colors">
+              <span className="text-3xl">{spec.icon}</span>
+              <div>
+                <div className="font-semibold text-sm text-gray-700">{spec.label}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{spec.sub}</div>
+                <div className="text-xs text-teal-600 mt-1 font-medium">Click to upload</div>
+              </div>
+              <input type="file" className="hidden" />
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// MAIN APP
+// ============================================================
+const App = () => {
+  const [page, setPage] = useState('overview');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const PAGE_TITLES = {
+    overview: 'Overview Dashboard',
+    review: 'Question Review',
+    comparison: 'Set A vs Set B',
+    compliance: 'Compliance Report',
+    guidelines: 'Guideline Management',
+  };
+
+  const renderPage = () => {
+    switch(page) {
+      case 'overview': return <OverviewPage onNav={setPage} />;
+      case 'review': return <QuestionReviewPage />;
+      case 'comparison': return <ComparisonPage />;
+      case 'compliance': return <ComplianceReportPage />;
+      case 'guidelines': return <GuidelineManagementPage />;
+      default: return <OverviewPage onNav={setPage} />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <DemoBanner />
+      <div className="flex flex-1">
+        <Sidebar active={page} onNav={setPage} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(v => !v)} />
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Top Bar */}
+          <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">{PAGE_TITLES[page]}</h2>
+              <p className="text-xs text-gray-400">Java Programming • DCS3223 • Sem 2 2024/25</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded-full font-semibold flex items-center gap-1">
+                <span className="pulse-dot inline-block w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                Demo Mode
+              </span>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{background:'#1e3a5f'}}>L</div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <main className="flex-1 p-6 overflow-y-auto">
+            {renderPage()}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
